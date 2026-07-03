@@ -66,7 +66,10 @@ def _get_keras_backend() -> str:
 
 def _get_context(backend: str) -> ModelContext:
     """Build a ModelContext that records the backend and relevant package versions."""
-    framework_versions: t.Dict[str, str] = {"keras": keras.__version__}
+    framework_versions: t.Dict[str, str] = {
+        "keras": keras.__version__,
+        "backend": backend,
+    }
     if backend == "tensorflow":
         tf_version = get_tf_version()
         if tf_version:
@@ -171,9 +174,11 @@ def load_model(
     """
     Load a model from BentoML local modelstore with given name.
 
-    Keras 3 models are loaded using whichever backend was active when the model
-    was saved (tensorflow, torch, jax, ...). TensorFlow is only required when
-    loading a model saved with the TensorFlow backend.
+    Keras 3 models can only be loaded with the same backend that was active
+    when the model was saved (``tensorflow``, ``torch``, ``jax``, ...). The
+    current backend is read from ``keras.config.backend()``; if it differs from
+    the saved backend, a ``BentoMLException`` is raised. TensorFlow is only
+    required when loading a model saved with the TensorFlow backend.
 
     Args:
         bento_model (``str`` ``|`` :obj:`~bentoml.Tag` ``|`` :obj:`~bentoml.Model`):
@@ -207,6 +212,13 @@ def load_model(
         )
 
     backend = _get_keras_backend()
+    saved_backend = bento_model.info.context.framework_versions.get("backend")
+    if saved_backend is not None and saved_backend != backend:
+        raise BentoMLException(
+            f"Keras model {bento_model.tag} was saved with backend '{saved_backend}', "
+            f"but the current Keras backend is '{backend}'. Set KERAS_BACKEND={saved_backend} "
+            "before importing Keras to load this model."
+        )
 
     if backend == "tensorflow":
         tf = _get_tf()
