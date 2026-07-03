@@ -8,6 +8,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING
 
 import attr
+import keras
 from packaging import version
 
 import bentoml
@@ -25,8 +26,6 @@ from ..types import LazyType
 from ..utils.pkg import get_pkg_version
 from .utils.tensorflow import get_tf_version
 
-import keras
-
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -34,9 +33,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..external_typing import tensorflow as tf_ext
     from ..models.model import ModelSignatureDict
 
-    KerasArgType = t.Union[
-        t.List[t.Union[int, float]], ext.NpNDArray, "tf_ext.Tensor"
-    ]
+    KerasArgType = t.Union[t.List[t.Union[int, float]], ext.NpNDArray, "tf_ext.Tensor"]
 
 
 MODULE_NAME = "bentoml.keras"
@@ -81,9 +78,7 @@ def _get_context(backend: str) -> ModelContext:
             framework_versions["jax"] = get_pkg_version("jax")
         except Exception:
             pass
-    return ModelContext(
-        framework_name="keras", framework_versions=framework_versions
-    )
+    return ModelContext(framework_name="keras", framework_versions=framework_versions)
 
 
 @attr.define
@@ -345,8 +340,6 @@ def save_model(
 def _to_numpy(value: t.Any) -> t.Any:
     """Convert backend tensors returned by Keras methods to numpy arrays."""
     if LazyType("torch.Tensor").isinstance(value):
-        import torch
-
         return value.detach().cpu().numpy()
     if LazyType("jax.Array").isinstance(value):
         import numpy as np
@@ -393,7 +386,9 @@ def get_runnable(
                 )
 
             def _mapping(item: "KerasArgType") -> "tf_ext.TensorLike":
-                if not LazyType["tf_ext.TensorLike"]("tensorflow.Tensor").isinstance(item):
+                if not LazyType["tf_ext.TensorLike"]("tensorflow.Tensor").isinstance(
+                    item
+                ):
                     return t.cast("tf_ext.TensorLike", tf.convert_to_tensor(item))
                 else:
                     return item
@@ -440,9 +435,7 @@ def get_runnable(
                     return item.to(runnable_self.device_name)
                 return item
 
-            def _run_method(
-                runnable_self: KerasRunnable, *args: t.Any
-            ) -> t.Any:
+            def _run_method(runnable_self: KerasRunnable, *args: t.Any) -> t.Any:
                 params = Params(*args)
                 params = params.map(_mapping)
                 if len(params.args) == 1:
@@ -463,9 +456,7 @@ def get_runnable(
             if method_partial_kwargs:
                 raw_method = functools.partial(raw_method, **method_partial_kwargs)
 
-            def _run_method(
-                runnable_self: KerasRunnable, *args: t.Any
-            ) -> t.Any:
+            def _run_method(runnable_self: KerasRunnable, *args: t.Any) -> t.Any:
                 params = Params(*args)
                 params = params.map(_to_numpy)
                 if len(params.args) == 1:
