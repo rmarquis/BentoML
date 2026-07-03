@@ -228,13 +228,14 @@ def load_model(
             )
         if "GPU" in device_name:
             physical_devices = tf.config.list_physical_devices("GPU")
-            try:
-                # an optimization for GPU memory growth. But it will raise an error if any
-                # tensorflow session is already created. That happens when users test runners
-                # in a notebook or Python interactive shell. Thus we just ignore the error.
-                tf.config.experimental.set_memory_growth(physical_devices[0], True)
-            except RuntimeError:
-                pass
+            if physical_devices:
+                try:
+                    # an optimization for GPU memory growth. But it will raise an error if any
+                    # tensorflow session is already created. That happens when users test runners
+                    # in a notebook or Python interactive shell. Thus we just ignore the error.
+                    tf.config.experimental.set_memory_growth(physical_devices[0], True)
+                except RuntimeError:
+                    pass
 
     device_name = _normalize_device_name(backend, device_name)
 
