@@ -114,15 +114,6 @@ def get(tag_like: str | Tag) -> bentoml.Model:
     return model
 
 
-def _normalize_torch_device(device_name: str) -> str:
-    """Map TensorFlow-style device strings to PyTorch-style strings."""
-    if device_name.startswith("/device:GPU"):
-        return "cuda"
-    if device_name.startswith("/device:CPU"):
-        return "cpu"
-    return device_name
-
-
 def _get_default_device(backend: str) -> str:
     """Return a default device string appropriate for the active backend."""
     if backend == "tensorflow":
@@ -138,6 +129,21 @@ def _get_default_device(backend: str) -> str:
 
         return "cuda" if torch.cuda.is_available() else "cpu"
     return "cpu"
+
+
+def _normalize_device_name(backend: str, device_name: str) -> str:
+    """Return a device string suitable for the active backend.
+
+    TensorFlow-style device strings such as ``"/device:GPU:0"`` are accepted as
+    the default and are converted to backend-specific strings when needed (e.g.
+    ``"cuda"`` for PyTorch).
+    """
+    if backend == "torch":
+        if device_name.startswith("/device:GPU"):
+            return "cuda"
+        if device_name.startswith("/device:CPU"):
+            return "cpu"
+    return device_name
 
 
 @contextmanager
@@ -217,6 +223,8 @@ def load_model(
                 tf.config.experimental.set_memory_growth(physical_devices[0], True)
             except RuntimeError:
                 pass
+
+    device_name = _normalize_device_name(backend, device_name)
 
     with _device_scope(backend, device_name):
         return keras.models.load_model(
@@ -367,7 +375,9 @@ def get_runnable(
 
         def __init__(self):
             super().__init__()
-            self.device_name = _get_default_device(backend)
+            self.device_name = _normalize_device_name(
+                backend, _get_default_device(backend)
+            )
             self.model = load_model(bento_model, device_name=self.device_name)
             self.methods_cache: t.Dict[str, t.Callable[..., t.Any]] = {}
 

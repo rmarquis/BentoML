@@ -41,3 +41,40 @@ def test_keras_torch_save_load():
         np.testing.assert_allclose(result, expected, rtol=1e-5)
     finally:
         runner.destroy()
+
+
+@pytest.mark.skipif(
+    os.environ.get("KERAS_BACKEND", "tensorflow") != "torch",
+    reason="This test exercises the Keras torch backend.",
+)
+def test_keras_torch_load_with_tf_style_device():
+    import keras
+
+    import bentoml
+
+    backend = keras.config.backend()
+    if backend != "torch":
+        pytest.skip(f"Keras backend is {backend!r}, not 'torch'.")
+
+    inp = keras.Input(shape=(3,), name="inp")
+    out = keras.layers.Dense(1, use_bias=False, kernel_initializer="ones", name="out")(
+        inp
+    )
+    model = keras.Model(inputs=inp, outputs=out)
+
+    x = np.array([[1.0, 2.0, 3.0]], dtype=np.float32)
+    expected = model.predict(x)
+
+    bento_model = bentoml.keras.save_model("keras_torch_model_tf_device", model)
+
+    # TensorFlow-style device strings should be accepted and normalized.
+    loaded = bentoml.keras.load_model(bento_model.tag, device_name="/device:CPU:0")
+    np.testing.assert_allclose(loaded.predict(x), expected, rtol=1e-5)
+
+    runner = bento_model.to_runner()
+    runner.init_local()
+    try:
+        result = runner.predict.run(x)
+        np.testing.assert_allclose(result, expected, rtol=1e-5)
+    finally:
+        runner.destroy()
