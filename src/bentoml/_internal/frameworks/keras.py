@@ -456,6 +456,8 @@ def get_runnable(
                     return torch.from_numpy(item).to(runnable_self.device_name)
                 if LazyType("torch.Tensor").isinstance(item):
                     return item.to(runnable_self.device_name)
+                if isinstance(item, (list, tuple)):
+                    return torch.as_tensor(item).to(runnable_self.device_name)
                 return item
 
             def _run_method(runnable_self: KerasRunnable, *args: t.Any) -> t.Any:

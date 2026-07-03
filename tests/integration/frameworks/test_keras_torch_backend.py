@@ -84,6 +84,40 @@ def test_keras_torch_load_with_tf_style_device():
     os.environ.get("KERAS_BACKEND", "tensorflow") != "torch",
     reason="This test exercises the Keras torch backend.",
 )
+def test_keras_torch_runner_accepts_list_input():
+    import keras
+
+    import bentoml
+
+    backend = keras.config.backend()
+    if backend != "torch":
+        pytest.skip(f"Keras backend is {backend!r}, not 'torch'.")
+
+    inp = keras.Input(shape=(3,), name="inp")
+    out = keras.layers.Dense(1, use_bias=False, kernel_initializer="ones", name="out")(
+        inp
+    )
+    model = keras.Model(inputs=inp, outputs=out)
+
+    bento_model = bentoml.keras.save_model("keras_torch_model_list_input", model)
+
+    x_list = [[1.0, 2.0, 3.0]]
+    x_tuple = ([1.0, 2.0, 3.0],)
+    expected = model.predict(np.array(x_list, dtype=np.float32))
+
+    runner = bento_model.to_runner()
+    runner.init_local()
+    try:
+        np.testing.assert_allclose(runner.predict.run(x_list), expected, rtol=1e-5)
+        np.testing.assert_allclose(runner.predict.run(x_tuple), expected, rtol=1e-5)
+    finally:
+        runner.destroy()
+
+
+@pytest.mark.skipif(
+    os.environ.get("KERAS_BACKEND", "tensorflow") != "torch",
+    reason="This test exercises the Keras torch backend.",
+)
 def test_keras_torch_load_with_wrong_backend_raises():
     import keras
 
