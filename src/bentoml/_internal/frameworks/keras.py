@@ -265,9 +265,9 @@ def save_model(
     Save a model instance to BentoML modelstore.
 
     ``bentoml.keras.save_model`` works with Keras 2 and Keras 3 models. For
-    Keras 3, the active backend (``tensorflow``, ``torch``, ``jax``,
-    ``openvino``) is detected automatically and recorded in the saved model's
-    context. TensorFlow-specific arguments (``tf_signatures`` and
+    Keras 3, the active backend (``tensorflow``, ``torch``, ``jax``) is
+    detected automatically and recorded in the saved model's context.
+    TensorFlow-specific arguments (``tf_signatures`` and
     ``tf_save_options``) are only accepted when the active backend is
     TensorFlow.
 
